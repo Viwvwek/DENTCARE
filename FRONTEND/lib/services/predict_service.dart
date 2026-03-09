@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 class PredictService {
   static Future<Map<String, dynamic>> predictImage(File imageFile) async {
-    final uri = Uri.parse("http://10.179.156.181:8000/predict");
+    final uri = Uri.parse("http://127.0.0.1:8000/predict");
 
     final request = http.MultipartRequest('POST', uri);
     request.files.add(
