@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "333544961571",
+    "project_id": "dentshade-d66e1",
+    "storage_bucket": "dentshade-d66e1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:333544961571:android:cc72640322af0f34530f41",
+        "android_client_info": {
+          "package_name": "com.example.dentcare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB4-I0XQbPabb7MFiZs7Rj9PvxJA7wJ0ik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

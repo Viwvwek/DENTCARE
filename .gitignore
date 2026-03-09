@@ -1,0 +1,8 @@
+FRONTEND/build/
+FRONTEND/.dart_tool/
+BACKEND/venv/
+BACKEND/__pycache__/
+*.h5
+*.tflite
+*.keras
+*.dill
