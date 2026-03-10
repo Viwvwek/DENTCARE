@@ -289,21 +289,3 @@ GitHub
 [https://github.com/Viwvwek](https://github.com/Viwvwek)
 
 ---
-
-# ⭐ Support
-
-If you find this project useful, please consider **starring the repository**.
-
----
-
-✅ This README now looks like **a professional open-source project**.
-
----
-
-If you want, I can also show you **3 things that will make your GitHub project look like a Google / Microsoft level repo**:
-
-1️⃣ **Architecture diagram (visual)**
-2️⃣ **System design section (great for interviews)**
-3️⃣ **Demo GIF of the app**
-
-These make recruiters **instantly impressed**.
