@@ -1,0 +1,16 @@
+﻿
+analyze_7.txt:71:  error - The 
+named parameter 'settings' is 
+required, but there's no 
+corresponding argument - lib\se
+rvices\notification_service.dar
+t:28:31 - 
+missing_required_argument
+analyze_7.txt:72:  error - The 
+named parameter 
+'initializationSettings' isn't 
+defined - lib\services\notifica
+tion_service.dart:29:7 - 
+undefined_named_parameter
+
+

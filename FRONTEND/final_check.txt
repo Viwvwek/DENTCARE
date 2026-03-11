@@ -1,0 +1,29 @@
+﻿
+analyze_5.txt:77:  error - The 
+named parameter 'settings' is 
+required, but there's no 
+corresponding argument - lib\se
+rvices\notification_service.dar
+t:28:31 - 
+missing_required_argument
+analyze_5.txt:78:  error - Too 
+many positional arguments: 0 
+expected, but 1 found - lib\ser
+vices\notification_service.dart
+:29:7 - extra_positional_argume
+nts_could_be_named
+analyze_5.txt:79:  error - The 
+named parameter 'id' is 
+required, but there's no 
+corresponding argument - lib\se
+rvices\notification_service.dar
+t:77:31 - 
+missing_required_argument
+analyze_5.txt:80:  error - Too 
+many positional arguments: 0 
+expected, but 3 found - lib\ser
+vices\notification_service.dart
+:78:7 - extra_positional_argume
+nts_could_be_named
+
+

@@ -30,13 +30,16 @@ def preprocess_image(image_path, img_size=224):
 
 # ---------- Prediction function ----------
 def predict_image(image_path):
+    print(f"Analyzing image: {image_path}")
     inp = preprocess_image(image_path)
     probs = model.predict(inp)[0]
 
     top_idx = int(np.argmax(probs))
-    confidence = float(probs[top_idx]) + 0.4
+    confidence = float(probs[top_idx])
 
-    return {
+    result = {
         "shade": CLASSES[top_idx],
         "confidence": round(confidence, 3)
     }
+    print(f"Prediction result: {result}")
+    return result

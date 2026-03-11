@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'utils/theme.dart';
+import 'dart:ui';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -21,23 +23,15 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    // Use the provided API key
     final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-    
-    _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: apiKey,
-    );
-    
-    // Initialize the chat session
+    _model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
     _chat = _model.startChat(history: [
-      Content.system('You are DentBot, a helpful, polite, and professional AI virtual assistant for the DentShade dental application. You help users understand dental shade matching, oral hygiene, and basic dental advice. Keep your answers concise, empathetic, and informative.'),
+      Content('user', [TextPart('You are DentBot, a elite AI dental consultant. Your tone is professional, sophisticated, and medical-grade. You work for DentCare Premium services.')]),
     ]);
 
-    // Add a welcome message from the bot
     _messages.add({
       'sender': 'bot',
-      'text': 'Hello! I am your DentShade assistant. How can I help you with your dental care today?'
+      'text': 'Welcome to DentCare Premium Assistant. How may I assist you with your professional dental inquiries today?'
     });
   }
 
@@ -67,23 +61,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
     try {
       final response = await _chat.sendMessage(Content.text(text));
-      final botText = response.text ?? "I couldn't process that.";
-
-      setState(() {
-        _messages.add({'sender': 'bot', 'text': botText});
-      });
+      setState(() => _messages.add({'sender': 'bot', 'text': response.text ?? "Unable to respond."}));
     } catch (e) {
-      debugPrint("Gemini Error: $e");
-      setState(() {
-        _messages.add({
-          'sender': 'bot',
-          'text': "AI Error: $e"
-        });
-      });
+      setState(() => _messages.add({'sender': 'bot', 'text': "Connection error. Please check your network."}));
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       _scrollToBottom();
     }
   }
@@ -93,120 +75,109 @@ class _ChatScreenState extends State<ChatScreen> {
     final bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('DentBot Assistant', style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF4FD1C5),
+        title: const Text('DENTBOT ELITE', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 16)),
+        backgroundColor: Colors.white,
+        centerTitle: true,
         elevation: 0,
+        foregroundColor: AppTheme.primary,
+        actions: [
+          IconButton(icon: const Icon(Icons.more_vert_rounded), onPressed: () {}),
+        ],
       ),
-      backgroundColor: Colors.grey[100],
       body: Column(
         children: [
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+              physics: const BouncingScrollPhysics(),
               itemCount: _messages.length,
               itemBuilder: (context, index) {
                 final msg = _messages[index];
                 final isUser = msg['sender'] == 'user';
-
-                return Align(
-                  alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 5),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: isUser ? const Color(0xFF4FD1C5) : Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(20),
-                        topRight: const Radius.circular(20),
-                        bottomLeft: isUser ? const Radius.circular(20) : Radius.zero,
-                        bottomRight: isUser ? Radius.zero : const Radius.circular(20),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 5,
-                          offset: const Offset(0, 2),
-                        )
-                      ],
-                    ),
-                    constraints: BoxConstraints(
-                      maxWidth: MediaQuery.of(context).size.width * 0.75,
-                    ),
-                    child: Text(
-                      msg['text']!,
-                      style: TextStyle(
-                        color: isUser ? Colors.white : Colors.black87,
-                        fontSize: 16,
-                      ),
-                    ),
-                  ),
-                );
+                return _buildMessageBubble(msg['text']!, isUser);
               },
             ),
           ),
-          if (_isLoading)
-            const Padding(
-              padding: EdgeInsets.all(8.0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4FD1C5)),
-                ),
+          _buildInputArea(isKeyboardOpen),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMessageBubble(String text, bool isUser) {
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 20),
+        padding: const EdgeInsets.all(18),
+        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+        decoration: BoxDecoration(
+          color: isUser ? AppTheme.primary : Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(24),
+            topRight: const Radius.circular(24),
+            bottomLeft: Radius.circular(isUser ? 24 : 4),
+            bottomRight: Radius.circular(isUser ? 4 : 24),
+          ),
+          boxShadow: AppTheme.softShadow,
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isUser ? Colors.white : AppTheme.primary,
+            fontSize: 15,
+            height: 1.4,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputArea(bool isKeyboardOpen) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 15, 20, isKeyboardOpen ? 15 : 120),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              style: const TextStyle(fontSize: 16),
+              decoration: InputDecoration(
+                hintText: "Professional inquiry...",
+                hintStyle: AppTheme.subHeading.copyWith(fontSize: 14),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+                fillColor: AppTheme.background,
+                filled: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               ),
-            ),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  blurRadius: 10,
-                  offset: Offset(0, -2),
-                )
-              ],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: "Ask DentBot something...",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
-                      ),
-                      fillColor: Colors.grey[200],
-                      filled: true,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    ),
-                    onSubmitted: (_) => _sendMessage(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _isLoading ? null : _sendMessage,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF4FD1C5),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.send, color: Colors.white, size: 24),
-                  ),
-                ),
-              ],
+              onSubmitted: (_) => _sendMessage(),
             ),
           ),
-          
-          // Add padding for the floating bottom nav bar ONLY when keyboard is closed
-          if (!isKeyboardOpen) 
-            const SizedBox(height: 100),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: _isLoading ? null : _sendMessage,
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: AppTheme.accentGradient,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: AppTheme.accentShadow,
+              ),
+              child: _isLoading 
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Icon(Icons.send_rounded, color: Colors.white, size: 24),
+            ),
+          ),
         ],
       ),
     );

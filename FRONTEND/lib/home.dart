@@ -5,12 +5,24 @@ import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'utils/theme.dart';
+import 'utils/loading_overlay.dart';
+import 'dart:ui';
 
 import 'chat.dart';
 import 'medication.dart';
 import 'profile.dart';
 import 'scan_reports.dart';
 import 'schedule.dart';
+import 'patients/patient_list.dart';
+import 'widgets/vita_shade_guide.dart';
+import 'admin/admin_dashboard.dart';
+import 'appointments/appointments_screen.dart';
+import 'services/user_service.dart';
+import 'utils/role_provider.dart';
+import 'services/ai_recommendation_service.dart';
+import 'services/database_service.dart';
 
 class Home extends StatefulWidget {
   const Home({super.key});
@@ -25,16 +37,29 @@ class _HomeState extends State<Home> {
   Uint8List? _webImage;
   String? _predictedShade;
   double? _confidence;
+  String? _treatmentRecommendation;
   bool _isLoading = false;
 
-  final List<Widget> _screens = [
-    // We will build the home content down below
-    const ScheduleScreen(),   // Index 0 replaces placeholder
-    const ChatScreen(),       // Index 1
-    const SizedBox.shrink(), // Index 2 is the 'Add' button action (dialog)
-    const MedicationScreen(), // Index 3
-    const ProfileScreen(),    // Index 4
-  ];
+  late List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      Container(),                // 0: Home (built dynamically)
+      const PatientListScreen(),  // 1: Patients
+      const ChatScreen(),         // 2: DentBot
+      const SizedBox.shrink(),    // 3: Scan (CTA)
+      const AppointmentsScreen(), // 4: Appointments
+      const RoleGuard(
+        allowedRoles: [AppRole.admin],
+        featureName: 'Admin Dashboard',
+        child: AdminDashboardScreen(),
+      ), // 5: Admin
+      const MedicationScreen(),   // 6: Medications
+      const ProfileScreen(),      // 7: Profile
+    ];
+  }
 
   Future<void> _openCamera() async {
     final ImagePicker picker = ImagePicker();
@@ -53,10 +78,8 @@ class _HomeState extends State<Home> {
 
   Future<void> _pickFromGallery() async {
     final ImagePicker picker = ImagePicker();
-
     try {
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
       if (image != null) {
         if (kIsWeb) {
           final bytes = await image.readAsBytes();
@@ -80,29 +103,58 @@ class _HomeState extends State<Home> {
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Upload from Gallery'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickFromGallery();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Capture with Camera'),
-              onTap: () {
-                Navigator.pop(context);
-                _openCamera();
-              },
-            ),
-          ],
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey[300],
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.photo_library, color: AppTheme.accent),
+                ),
+                title: const Text('Upload from Gallery', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickFromGallery();
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.camera_alt, color: AppTheme.accent),
+                ),
+                title: const Text('Capture with Camera', style: TextStyle(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _openCamera();
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -110,515 +162,235 @@ class _HomeState extends State<Home> {
 
   @override
   Widget build(BuildContext context) {
-    _screens[0] = _buildHomeContent();
-    
-    // Check if the software keyboard is open
     final bool isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF38B2AC), // Set scaffold background to match gradient bottom
-      body: SafeArea(
-        child: Stack(
-          children: [
-          // The actively selected screen
-          _screens[_currentIndex],
+      backgroundColor: AppTheme.background,
+      body: Stack(
+        children: [
+          // Active Screen
+          _currentIndex == 0
+              ? _buildHomeContent()
+              : (_currentIndex < _screens.length ? _screens[_currentIndex] : _screens[_screens.length - 1]),
 
-          // 3. Floating Bottom Navigation Bar (Hide when typing)
+          // Floating Premium Bottom Nav
           if (!isKeyboardOpen)
             Positioned(
-              bottom: 30,
+              bottom: 25,
               left: 20,
               right: 20,
-              child: Container(
-                height: 70,
-              decoration: BoxDecoration(
-                color: const Color(0xFF4FD1C5).withOpacity(0.9), // Solidified background slightly for visibility over other screens
+              child: ClipRRect(
                 borderRadius: BorderRadius.circular(35),
-                border: Border.all(color: Colors.white.withOpacity(0.3)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  GestureDetector(
-                    onTap: () => setState(() => _currentIndex = 0),
-                    child: Icon(Icons.home_filled, color: _currentIndex == 0 ? Colors.white : Colors.white60, size: 30),
-                  ),
-                  GestureDetector(
-                    onTap: () => setState(() => _currentIndex = 1),
-                    child: Icon(Icons.chat_bubble_outline,
-                        color: _currentIndex == 1 ? Colors.white : Colors.white60, size: 28),
-                  ),
-                  // Add Button Circle
-                  GestureDetector(
-                    onTap: _showImageSourceDialog,
-                    child: Container(
-                      height: 50,
-                      width: 50,
-                      decoration: BoxDecoration(
-                          color: const Color(0xFF38B2AC),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black12, blurRadius: 5)
-                          ]),
-                      child:
-                          const Icon(Icons.add, color: Colors.white, size: 30),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    height: 75,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(35),
+                      border: Border.all(color: Colors.white10),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _buildNavItem(0, Icons.grid_view_rounded, 'Home'),
+                        _buildNavItem(1, Icons.people_rounded, 'Patients'),
+                        GestureDetector(
+                          onTap: _showImageSourceDialog,
+                          child: Container(
+                            height: 55,
+                            width: 55,
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.accentGradient,
+                              shape: BoxShape.circle,
+                              boxShadow: AppTheme.accentShadow,
+                            ),
+                            child: const Icon(Icons.document_scanner_rounded, color: Colors.white, size: 28),
+                          ),
+                        ),
+                        _buildNavItem(4, Icons.calendar_today_rounded, 'Schedule'),
+                        _buildNavItem(7, Icons.person_rounded, 'Profile'),
+                      ],
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => setState(() => _currentIndex = 3),
-                    child: Icon(Icons.medication_outlined,
-                        color: _currentIndex == 3 ? Colors.white : Colors.white60, size: 28),
-                  ),
-                  GestureDetector(
-                    onTap: () => setState(() => _currentIndex = 4),
-                    child: Icon(Icons.person_outline,
-                        color: _currentIndex == 4 ? Colors.white : Colors.white60, size: 30),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
+
+          // Loading Overlay
+          if (_isLoading) const PremiumLoadingOverlay(),
         ],
       ),
-     ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData icon, [String? label]) {
+    bool isSelected = _currentIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _currentIndex = index),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.accent.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: isSelected ? AppTheme.accent : Colors.white60, size: 24),
+            if (label != null) ...[
+              const SizedBox(height: 2),
+              Text(label, style: TextStyle(color: isSelected ? AppTheme.accent : Colors.white60, fontSize: 9, fontWeight: FontWeight.w700)),
+            ],
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildHomeContent() {
-    return Stack(
+    final user = FirebaseAuth.instance.currentUser;
+    final String name = user?.email?.split('@').first ?? 'Doctor';
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: double.infinity,
-            width: double.infinity,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF4FD1C5), // Top Teal
-                  Color(0xFF38B2AC), // Bottom Teal
-                ],
+          // Hero Header Section
+          Stack(
+            children: [
+              Container(
+                height: 240,
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.vertical(bottom: Radius.circular(40)),
+                  image: DecorationImage(
+                    image: AssetImage('assets/images/hero_bg.png'),
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.2),
+                        AppTheme.primary.withOpacity(0.7),
+                      ],
+                    ),
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(40)),
+                  ),
+                ),
               ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 70, 24, 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "DentCare Premium",
+                      style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, letterSpacing: 1.2, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Welcome back,\nDr. ${name.toUpperCase()}",
+                      style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900, height: 1.2),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 25),
+
+          // Prediction Result Box (If any)
+          if (_predictedShade != null && !_isLoading)
+            _buildResultCard(),
+
+          // Quick Action Cards - 2x2 grid
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.3,
+              children: [
+                _buildPremiumActionCard("Patients", "Manage Records", Icons.people_rounded, AppTheme.primary,
+                    () => setState(() => _currentIndex = 1)),
+                _buildPremiumActionCard("Schedule", "Appointments", Icons.calendar_today_rounded, const Color(0xFF6366F1),
+                    () => setState(() => _currentIndex = 4)),
+                _buildPremiumActionCard("AI Scan", "Shade Analysis", Icons.document_scanner_rounded, AppTheme.accent,
+                    _pickFromGallery),
+                _buildPremiumActionCard("Dashboard", "Clinic Analytics", Icons.bar_chart_rounded, const Color(0xFFF59E0B),
+                    () => setState(() => _currentIndex = 5)),
+              ],
             ),
           ),
 
-          // 2. Scrollable Content
-          SingleChildScrollView(
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 600), // Ensures it doesn't stretch too far on tablets/web
-                child: Padding(
-                  padding: const EdgeInsets.only(
-                      top: 40, bottom: 100), // Bottom padding for nav bar
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // --- Header Section ---
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "DentCare Portal", 
-                              style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 5),
-                            Text(
-                              "Hello, ${FirebaseAuth.instance.currentUser?.email?.split('@').first ?? 'Doctor'}",
-                              style: const TextStyle(
-                                  fontSize: 22,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            const Text(
-                              "Explore checkups",
-                              style: TextStyle(
-                                  fontSize: 18,
-                                  color: Colors.white70,
-                                  fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                        // Search Icon Box
-                        GestureDetector(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Search functionality coming soon!')),
-                            );
-                          },
-                          child: Container(
-                            height: 50,
-                            width: 50,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(15),
-                              border: Border.all(color: Colors.white30),
-                            ),
-                            child: const Icon(Icons.search,
-                                color: Colors.white, size: 28),
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
+          const SizedBox(height: 35),
 
-                  const SizedBox(height: 30),
-
-                  // ✅ WEB image preview
-                  if (_webImage != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24.0, vertical: 10),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.memory(
-                          _webImage!,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-
-// ✅ MOBILE / DESKTOP image preview
-                  if (_selectedImage != null)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 24.0, vertical: 10),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(20),
-                        child: Image.file(
-                          _selectedImage!,
-                          height: 200,
-                          width: double.infinity,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-
-                  if ((_webImage != null || _selectedImage != null))
-                    const SizedBox(height: 20),
-
-                  if (_isLoading)
-                    const Center(
-                      child: CircularProgressIndicator(color: Colors.white),
-                    ),
-
-                  if (_predictedShade != null && !_isLoading)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Predicted Shade: $_predictedShade",
-                            style: const TextStyle(
-                              fontSize: 18,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            "Confidence: ${(_confidence! * 100).toStringAsFixed(2)}%",
-                            style: const TextStyle(
-                              fontSize: 16,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                  // --- Checkup Cards Area (Staggered Layout) ---
-                  // We use a Row with two Columns to create the staggered (diagonal) effect
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Left Column (Scan Report)
-                        Expanded(
-                          child: Column(
-                            children: [
-                              _buildCheckupCard(
-                                title: "Scan Report",
-                                duration: "50 minutes",
-                                imagePath:
-                                    "assets/images/clipboard_3d.png", // Replace with your asset
-                                icon: Icons.paste_outlined, // Fallback icon
-                                onTap: () {
-                                  Navigator.push(context, MaterialPageRoute(builder: (context) => const ScanReportsScreen()));
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 20),
-                        // Right Column (Shade Analysis) - Pushed down using SizedBox
-                        Expanded(
-                          child: Column(
-                            children: [
-                              const SizedBox(
-                                  height: 60), // Pushes the second card down
-                              _buildCheckupCard(
-                                title: "Shade analysis",
-                                duration: "50 minutes",
-                                imagePath:
-                                    "assets/images/microscope_3d.png", // Replace with your asset
-                                icon: Icons.biotech_outlined, // Fallback icon
-                                onTap: _pickFromGallery,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // --- Last Scan Section ---
-                  const Padding(
-                    padding: EdgeInsets.only(left: 24.0, bottom: 15),
-                    child: Text(
-                      "Recent Scans",
-                      style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold),
-                    ),
-                  ),
-
-                  // Dynamic Scan List from Firestore (Filtered for the current user)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('scans')
-                          .where('doctorEmail', isEqualTo: FirebaseAuth.instance.currentUser?.email)
-                          .orderBy('timestamp', descending: true)
-                          .limit(3)
-                          .snapshots(),
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Center(child: CircularProgressIndicator(color: Colors.white));
-                        }
-                        if (snapshot.hasError) {
-                          return Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withOpacity(0.5),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: SelectableText(
-                              'Firestore Index Required:\n\n${snapshot.error}\n\nPlease copy the URL in the error above and open it in your browser to generate the database index.',
-                              style: const TextStyle(color: Colors.redAccent, fontSize: 13),
-                            ),
-                          );
-                        }
-                        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                          return Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: const Center(
-                              child: Text(
-                                "No recent scans available.",
-                                style: TextStyle(color: Colors.white, fontSize: 16),
-                              ),
-                            ),
-                          );
-                        }
-
-                        return Column(
-                          children: snapshot.data!.docs.map((doc) {
-                            final data = doc.data() as Map<String, dynamic>;
-                            final email = data['doctorEmail'] ?? 'Unknown';
-                            final shade = data['shade'] ?? 'Unknown';
-                            final timestamp = data['timestamp'] as Timestamp?;
-                            
-                            String timeString = "Recently";
-                            if (timestamp != null) {
-                              final date = timestamp.toDate();
-                              timeString = "${date.month}/${date.day}/${date.year}";
-                            }
-
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 15.0),
-                              child: _buildDoctorCard(email, shade, timeString),
-                            );
-                          }).toList(),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
+          // Recent Activity Header
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("Recent Activity", style: AppTheme.heading),
+                Text("View All", style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
+              ],
             ),
           ),
-        ),
+
+          const SizedBox(height: 20),
+
+          // Recent Scans List
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: _buildRecentScansList(),
+          ),
+
+          const SizedBox(height: 120),
+        ],
       ),
-    ],
-  );
-}
-
-  Future<void> _predictShade() async {
-    if (_selectedImage == null) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      final result = await PredictService.predictImage(_selectedImage!);
-      final shade = result['shade'];
-      final confidence = result['confidence'];
-
-      setState(() {
-        _predictedShade = shade;
-        _confidence = confidence;
-      });
-
-      // Save to Firestore
-      final user = FirebaseAuth.instance.currentUser;
-      if (user != null && shade != null) {
-        try {
-          await FirebaseFirestore.instance.collection('scans').add({
-            'doctorEmail': user.email ?? 'Unknown Doctor',
-            'shade': shade,
-            'confidence': confidence,
-            'timestamp': FieldValue.serverTimestamp(),
-          }).timeout(const Duration(seconds: 10));
-          
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Scan saved to cloud successfully!'), backgroundColor: Colors.green),
-            );
-          }
-        } catch (e) {
-          debugPrint("Firestore write error: $e");
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Warning: Could not save to cloud. Check Firestore database rules! Error: $e'),
-                backgroundColor: Colors.red,
-                duration: const Duration(seconds: 5),
-              ),
-            );
-          }
-        }
-      }
-
-    } catch (e) {
-      debugPrint("Prediction error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to analyze scan. Is the ML backend running? Error: $e'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-          ),
-        );
-      }
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    );
   }
 
-  // Helper Widget for the 3D Checkup Cards
-  Widget _buildCheckupCard({
-    required String title,
-    required String duration,
-    required String imagePath,
-    required IconData icon,
-    VoidCallback? onTap,
-  }) {
+  Widget _buildPremiumActionCard(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
-      child: SizedBox(
-        height: 220, // Total height for stack
-        child: Stack(
-          alignment: Alignment.bottomCenter,
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(26),
+          boxShadow: AppTheme.softShadow,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // Background Card
             Container(
-              height: 170,
-              width: double.infinity,
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.15), // Clearer, more professional glass effect
-                borderRadius: BorderRadius.circular(30),
-                border: Border.all(color: Colors.white30, width: 1.5),
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(13),
               ),
+              child: Icon(icon, color: color, size: 24),
             ),
-            // White Info Box
-            Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: Container(
-                height: 70,
-                width: double.infinity,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      const SizedBox(height: 5),
-                      Row(
-                        children: [
-                          const Icon(Icons.access_time,
-                              size: 14, color: Colors.grey),
-                          const SizedBox(width: 5),
-                          Text(
-                            duration,
-                            style: const TextStyle(
-                                color: Colors.grey, fontSize: 12),
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            // Floating 3D Image (Positioned at top)
-            Positioned(
-              top: 0,
-              child: Container(
-                height: 120,
-                width: 120,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color:
-                      Colors.white.withOpacity(0.3), // Light glow behind image
-                ),
-                child: Center(
-                  // Replace this Icon with Image.asset(imagePath) when you have images
-                  child: Icon(icon, size: 80, color: Colors.white),
-                ),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: AppTheme.cardTitle.copyWith(fontSize: 15)),
+                const SizedBox(height: 2),
+                Text(subtitle, style: AppTheme.subHeading.copyWith(fontSize: 11)),
+              ],
             ),
           ],
         ),
@@ -626,70 +398,208 @@ class _HomeState extends State<Home> {
     );
   }
 
-  // Helper Widget for Doctor List Tile
-  Widget _buildDoctorCard(String doctorEmail, String shade, String timeString) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Row(
+  Widget _buildResultCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 30),
+      child: Column(
         children: [
-          // Avatar
+          // Compact result header
           Container(
-            width: 50,
-            height: 50,
+            padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: const Color(0xFF81E6D9).withOpacity(0.3),
-              shape: BoxShape.circle,
+              gradient: AppTheme.premiumGradient,
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: AppTheme.softShadow,
             ),
-            child: const Icon(Icons.medical_information, color: Color(0xFF38B2AC)),
-          ),
-          const SizedBox(width: 15),
-          // Text Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  "Scanned by: $doctorEmail",
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+                if (_selectedImage != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(15),
+                    child: Image.file(_selectedImage!, width: 60, height: 60, fit: BoxFit.cover),
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "Shade: $shade",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF38B2AC),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("AI Analysis Complete", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text("SHADE: $_predictedShade", style: const TextStyle(color: AppTheme.accent, fontSize: 20, fontWeight: FontWeight.w900)),
+                    ],
                   ),
                 ),
-                Text(
-                  timeString,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey,
-                  ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(color: Colors.white10, borderRadius: BorderRadius.circular(20)),
+                  child: Text("${(_confidence! * 100).toStringAsFixed(1)}%", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 16),
+          // VITA Shade Guide
+          VitaShadeGuideWidget(predictedShade: _predictedShade!, confidence: _confidence!),
+          
+          if (_treatmentRecommendation != null) ...[
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: AppTheme.softShadow,
+                border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(color: AppTheme.accent.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                        child: const Icon(Icons.auto_awesome_rounded, color: AppTheme.accent, size: 20),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text("AI Clinical Recommendation", style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: AppTheme.primary)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(_treatmentRecommendation!, style: const TextStyle(fontSize: 12, height: 1.5, color: AppTheme.secondaryText)),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Widget _buildRecentScansList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('scans')
+          .where('doctorEmail', isEqualTo: FirebaseAuth.instance.currentUser?.email)
+          .orderBy('timestamp', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const CircularProgressIndicator();
+        if (snapshot.data!.docs.isEmpty) {
+          return Center(child: Text("No scans found", style: AppTheme.subHeading));
+        }
+
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: snapshot.data!.docs.length,
+          itemBuilder: (context, index) {
+            final data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
+            return Container(
+              margin: const EdgeInsets.only(bottom: 15),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: AppTheme.softShadow,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    height: 50,
+                    width: 50,
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Icon(Icons.analytics_rounded, color: AppTheme.accent),
+                  ),
+                  const SizedBox(width: 15),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Tooth Shade Scan", style: AppTheme.cardTitle.copyWith(fontSize: 16)),
+                      Text("Result: ${data['shade']}", style: AppTheme.subHeading.copyWith(fontSize: 13)),
+                    ],
+                  ),
+                  const Spacer(),
+                  const Icon(Icons.chevron_right_rounded, color: Colors.grey),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _predictShade() async {
+    if (_selectedImage == null) return;
+    setState(() => _isLoading = true);
+
+    try {
+      File finalImage = _selectedImage!;
+      if (!kIsWeb) {
+        final filePath = _selectedImage!.absolute.path;
+        final lastIndex = filePath.lastIndexOf(RegExp(r'.jp|.pn'));
+        final splitted = filePath.substring(0, (lastIndex));
+        final outPath = "${splitted}_out${filePath.substring(lastIndex)}";
+
+        final compressedFile = await FlutterImageCompress.compressAndGetFile(
+          _selectedImage!.absolute.path,
+          outPath,
+          quality: 70,
+          minWidth: 512,
+          minHeight: 512,
+        );
+        if (compressedFile != null) finalImage = File(compressedFile.path);
+      }
+
+      final result = await PredictService.predictImage(finalImage);
+      final shade = result['shade'];
+      final conf = result['confidence'];
+
+      // Generate AI recommendation
+      final recommendation = await AIRecommendationService.generateTreatmentRecommendation(
+        predictedShade: shade,
+        confidence: conf,
+      );
+
+      setState(() {
+        _predictedShade = shade;
+        _confidence = conf;
+        _treatmentRecommendation = recommendation;
+      });
+
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        final profile = await UserService.getCurrentProfile();
+        final clinicId = profile?.clinicId ?? user.uid;
+        final scanId = DateTime.now().millisecondsSinceEpoch.toString();
+        
+        final scanData = {
+          'id': scanId,
+          'clinicId': clinicId,
+          'doctorUid': user.uid,
+          'doctorName': profile?.displayName ?? user.email?.split('@').first ?? 'Doctor',
+          'doctorEmail': user.email,
+          'shade': shade,
+          'confidence': conf,
+          'treatmentRecommendation': recommendation,
+          'isLowConfidence': conf < 0.75,
+          'timestamp': DateTime.now().toIso8601String(), // Use ISO string for Hive
+        };
+
+        // Save locally and queue for Firestore sync
+        await DatabaseService.saveLocal(DatabaseService.scansBox, scanId, scanData);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Processing Failed: $e'), backgroundColor: Colors.red));
+      }
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 }

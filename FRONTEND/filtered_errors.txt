@@ -1,0 +1,47 @@
+﻿
+analyze_4.txt:71:  error - The 
+argument type 'void 
+Function(ConnectivityResult)' 
+can't be assigned to the 
+parameter type 'void Function(L
+ist<ConnectivityResult>)?'.  - 
+lib\services\database_service.d
+art:50:50 - 
+argument_type_not_assignable
+analyze_4.txt:72:   info - The 
+type of the right operand 
+('ConnectivityResult') isn't a 
+subtype or a supertype of the 
+left operand 
+('List<ConnectivityResult>') - 
+lib\services\database_service.d
+art:60:22 - 
+unrelated_type_equality_checks
+analyze_4.txt:73:  error - The 
+named parameter 'settings' is 
+required, but there's no 
+corresponding argument - lib\se
+rvices\notification_service.dar
+t:28:31 - 
+missing_required_argument
+analyze_4.txt:74:  error - Too 
+many positional arguments: 0 
+expected, but 1 found - lib\ser
+vices\notification_service.dart
+:28:42 - extra_positional_argum
+ents_could_be_named
+analyze_4.txt:75:  error - The 
+named parameter 'id' is 
+required, but there's no 
+corresponding argument - lib\se
+rvices\notification_service.dar
+t:72:31 - 
+missing_required_argument
+analyze_4.txt:76:  error - Too 
+many positional arguments: 0 
+expected, but 4 found - lib\ser
+vices\notification_service.dart
+:73:7 - extra_positional_argume
+nts_could_be_named
+
+

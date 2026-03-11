@@ -36,7 +36,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
   camera: ^0.11.0+2
-  path_provider: ^2.1.2
+  path_provider: ^2.1.5
   permission_handler: ^11.3.0
   image_picker: ^1.0.7
   http: ^1.2.0
@@ -47,7 +47,29 @@ dependencies:
   google_generative_ai: ^0.4.6
   intl: ^0.20.2
   flutter_dotenv: ^6.0.0
+  flutter_image_compress: ^2.3.0
 
+  firebase_storage: ^11.7.4
+  firebase_messaging: ^14.9.4
+
+  # PDF & Sharing
+  pdf: ^3.11.1
+  printing: ^5.13.1
+  share_plus: ^9.0.0
+
+  # Charts
+  fl_chart: ^0.68.0
+
+  # UI Enhancements
+  shimmer: ^3.0.0
+  cached_network_image: ^3.3.1
+
+  # Connectivity
+  connectivity_plus: ^7.0.0
+  table_calendar: ^3.2.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  flutter_local_notifications: ^21.0.0
 
 dev_dependencies:
   flutter_test:
@@ -80,6 +102,9 @@ flutter:
     - .env
    # - assets\images\First Aid.jpg
     - assets/images/First_Aid-removebg-preview.png
+    - assets/images/icons_3d.png
+    - assets/images/hero_bg.png
+    - assets/images/login_hero.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -112,10 +137,10 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/images/First Aid.jpg"
 flutter_native_splash:
-  color: "#4FD1C5"   # background color (matches your UI)
+  color: "#2DD4BF"   # background color (matches your UI)
   image: assets/images/First Aid.jpg
   android_12:
-    color: "#4FD1C5"
+    color: "#2DD4BF"
   android_gravity: center
   ios_content_mode: scaleAspectFit
 

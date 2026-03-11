@@ -1,0 +1,60 @@
+Analyzing FRONTEND...                                           
+
+   info - The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\chat.dart:5:8 - unnecessary_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\chat.dart:146:41 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\getstart.dart:31:40 - deprecated_member_use
+warning - Unused import: 'schedule.dart' - lib\home.dart:16:8 - unused_import
+warning - The value of the field '_webImage' isn't used - lib\home.dart:28:14 - unused_field
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:113:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:128:44 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:173:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:219:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:259:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:260:42 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:366:30 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\home.dart:436:18 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\home.dart:436:32 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:459:46 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\home.dart:487:29 - deprecated_member_use
+   info - Don't use 'BuildContext's across async gaps - lib\home.dart:554:28 - use_build_context_synchronously
+warning - Unused import: 'package:dentcare/getstart.dart' - lib\login.dart:1:8 - unused_import
+   info - The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\login.dart:7:8 - unnecessary_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\login.dart:81:34 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\login.dart:105:47 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\login.dart:199:27 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\login.dart:249:64 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\login.dart:255:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\medication.dart:156:39 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\medication.dart:173:70 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\sample.dart:80:56 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\sample.dart:122:30 - deprecated_member_use
+   info - Use 'const' with the constructor to improve performance - lib\scan_reports.dart:35:20 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\scan_reports.dart:36:22 - prefer_const_constructors
+   info - Use 'const' literals as arguments to constructors of '@immutable' classes - lib\scan_reports.dart:38:27 - prefer_const_literals_to_create_immutables
+   info - Use 'const' with the constructor to improve performance - lib\scan_reports.dart:41:19 - prefer_const_constructors
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\scan_reports.dart:85:38 - deprecated_member_use
+  error - Arguments of a constant creation must be constant expressions - lib\schedule.dart:159:39 - const_with_non_constant_argument
+  error - The getter 'calendar_add_on_rounded' isn't defined for the type 'Icons' - lib\schedule.dart:159:45 - undefined_getter
+   info - The import of 'dart:ui' is unnecessary because all of the used elements are also provided by the import of 'package:flutter/material.dart' - lib\signup.dart:4:8 - unnecessary_import
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\signup.dart:76:38 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\signup.dart:99:47 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\signup.dart:240:64 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\signup.dart:246:53 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\utils\theme.dart:33:27 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\utils\theme.dart:41:38 - deprecated_member_use
+  error - The named parameter 'cameras' isn't defined - test\widget_test.dart:16:41 - undefined_named_parameter
+
+flutter : 43 issues found. 
+(ran in 3.1s)
+At line:1 char:1
++ flutter analyze --no-pub 
+2>&1 | Out-File -FilePath 
+analysis.txt -Enco ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (43 issues f  
+  ound. (ran in 3.1s):String   
+ ) [], RemoteException
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 

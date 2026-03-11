@@ -1,0 +1,4 @@
+[
+  "error - Expected to find ')' - lib\\patients\\patient_detail.dart:329:6 - expected_token",
+  "error - The named parameter 'cameras' isn't defined - test\\widget_test.dart:16:41 - undefined_named_parameter"
+]

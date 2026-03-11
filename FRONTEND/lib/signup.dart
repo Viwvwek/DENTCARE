@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'utils/theme.dart';
+import 'utils/loading_overlay.dart';
+import 'dart:ui';
 
 class Signup extends StatefulWidget {
   const Signup({super.key});
@@ -11,10 +14,19 @@ class Signup extends StatefulWidget {
 class _SignupState extends State<Signup> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   bool _loading = false;
+  bool _obscurePassword = true;
 
   Future<void> _signup() async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords do not match"), backgroundColor: Colors.redAccent),
+      );
+      return;
+    }
+
     setState(() => _loading = true);
 
     try {
@@ -23,115 +35,231 @@ class _SignupState extends State<Signup> {
         password: _passwordController.text.trim(),
       );
 
-      // Success → go back to Login
-      Navigator.pop(context);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Account created successfully!"), backgroundColor: Colors.green),
+        );
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
     } on FirebaseAuthException catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message ?? "Signup failed")),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? "Signup failed"), backgroundColor: Colors.redAccent),
+        );
+      }
     } finally {
-      setState(() => _loading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        height: double.infinity,
-        width: double.infinity,
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF4FD1C5),
-              Color(0xFF38B2AC),
-            ],
-          ),
-        ),
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 80),
-            child: Column(
-              children: [
-                const Text(
-                  "Sign Up",
-                  style: TextStyle(
-                    fontSize: 28,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+      backgroundColor: AppTheme.background,
+      body: Stack(
+        children: [
+          // Background Hero (Abstract Mint Fluid)
+          Container(
+            height: MediaQuery.of(context).size.height * 0.45,
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/hero_bg.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.primary.withOpacity(0.4),
+                    AppTheme.background,
+                  ],
                 ),
-
-                const SizedBox(height: 40),
-
-                _inputField(
-                  controller: _emailController,
-                  hint: "Email",
-                  obscure: false,
-                ),
-
-                const SizedBox(height: 20),
-
-                _inputField(
-                  controller: _passwordController,
-                  hint: "Password",
-                  obscure: true,
-                ),
-
-                const SizedBox(height: 40),
-
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(25),
-                  child: MaterialButton(
-                    height: 55,
-                    minWidth: 260,
-                    color: const Color(0xFF2C7A7B),
-                    onPressed: _loading ? null : _signup,
-                    child: _loading
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text(
-                            "Create Account",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+
+          SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 20),
+                    // Back Button
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      ),
+                    ),
+
+                    const SizedBox(height: 100),
+
+                    // Title Section
+                    const Text(
+                      "Join the Elite",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 40,
+                        fontWeight: FontWeight.w900,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      "Start your professional journey with DentCare",
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
+
+                    const SizedBox(height: 50),
+
+                    // Signup Card
+                    Container(
+                      padding: const EdgeInsets.all(30),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(40),
+                        boxShadow: AppTheme.softShadow,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildTextField(
+                            controller: _emailController,
+                            label: "Work Email",
+                            hint: "doctor@hospital.com",
+                            icon: Icons.email_outlined,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextField(
+                            controller: _passwordController,
+                            label: "Create Password",
+                            hint: "••••••••",
+                            icon: Icons.vpn_key_outlined,
+                            isPassword: true,
+                          ),
+                          const SizedBox(height: 20),
+                          _buildTextField(
+                            controller: _confirmPasswordController,
+                            label: "Confirm Password",
+                            hint: "••••••••",
+                            icon: Icons.check_circle_outline_rounded,
+                            isPassword: true,
+                          ),
+
+                          const SizedBox(height: 40),
+
+                          SizedBox(
+                            width: double.infinity,
+                            height: 60,
+                            child: ElevatedButton(
+                              onPressed: _loading ? null : _signup,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                elevation: 0,
+                              ),
+                              child: _loading
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : const Text(
+                                      "CREATE CLINICAL ACCOUNT",
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 30),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          "ALREADY HAVE ACCESS? LOG IN",
+                          style: TextStyle(
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 50),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          if (_loading) const PremiumLoadingOverlay(message: "Creating Account", subMessage: "Initializing clinical workspace"),
+        ],
       ),
     );
   }
 
-  Widget _inputField({
+  Widget _buildTextField({
     required TextEditingController controller,
+    required String label,
     required String hint,
-    required bool obscure,
+    required IconData icon,
+    bool isPassword = false,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 30),
-      child: TextField(
-        controller: controller,
-        obscureText: obscure,
-        style: const TextStyle(color: Color(0xFF2C7A7B)),
-        decoration: InputDecoration(
-          filled: true,
-          fillColor: const Color(0xFFB2F5EA).withOpacity(0.5),
-          hintText: hint,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(25),
-            borderSide: BorderSide.none,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.5,
+            color: AppTheme.secondaryText,
           ),
-          contentPadding:
-              const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
         ),
-      ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          obscureText: isPassword && _obscurePassword,
+          style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.bold),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: TextStyle(color: AppTheme.secondaryText.withOpacity(0.4)),
+            prefixIcon: Icon(icon, color: AppTheme.accent, size: 20),
+            suffixIcon: isPassword
+                ? IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                      color: AppTheme.secondaryText.withOpacity(0.5),
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  )
+                : null,
+            filled: true,
+            fillColor: AppTheme.background,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(18),
+              borderSide: BorderSide.none,
+            ),
+            contentPadding: const EdgeInsets.symmetric(vertical: 18),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:dentcare/login.dart';
+import 'utils/theme.dart';
+import 'dart:ui';
 
 class Getstart extends StatelessWidget {
   const Getstart({super.key});
@@ -7,135 +9,146 @@ class Getstart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.primary,
       body: Stack(
         children: [
-          // 1. Background Gradient (Replaces backgroundColor: Colors.black87)
+          // Background Gradient & Abstract Hero
           Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                   Color(0xFF4FD1C5), // Top Teal
-                   Color(0xFF38B2AC), // Bottom Teal
-                ],
-              ),
+              gradient: AppTheme.premiumGradient,
             ),
           ),
           
-          // 2. Background Lines (Kept to ensure it looks "exact" as requested)
-          CustomPaint(
-            painter: BackgroundLinePainter(),
-          ),
-
-          // 3. Main Content using your pattern (SingleScroll -> Padding -> Column)
-          SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 60),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, // Align text to left
-                children: [
-                  // Title Text
-                  const Padding(
-                    padding: EdgeInsets.only(left: 24.0),
-                    child: Text(
-                      "DentCare",
-                      style: TextStyle(
-                        fontSize: 24, 
-                        color: Colors.white, 
-                        fontWeight: FontWeight.bold
-                      ),
-                    ),
-                  ),
-
-                  // 3D Image Container
-                  const SizedBox(height: 20), // Space between title and image
-                  Padding(
-                    padding: const EdgeInsets.only(top: 60, bottom: 40),
-                    child: SizedBox(
-                      height: 280,
-                      width: double.infinity,
-                      child: Image.asset(
-                        "assets/images/First_Aid-removebg-preview.png", // Make sure to add this asset
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-
-                  // Bottom Card Section
-                  const SizedBox(height: 150),   // ⬇️ This moves the button down
-
-Padding(
-  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
-  child: Container(
-    margin: const EdgeInsets.only(top: 30),
-    height: 100,
-    width: double.infinity,
-    decoration: BoxDecoration(
-      color: const Color(0xFF81E6D9).withOpacity(1.0),
-      borderRadius: BorderRadius.circular(30),
-    ),
-    child: Center(
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: MaterialButton(
-          onPressed: () {  
-            Navigator.push(context, MaterialPageRoute(builder: (context)=>const Login()));
-          },
-          height: 55,
-          minWidth: 220,
-          color: Colors.white,
-          child: const Text(
-            "Get Started",
-            style: TextStyle(
-              color: Color(0xFF319795),
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
+          // Floating 3D Elements Area
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              height: 400,
+              width: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppTheme.accent.withOpacity(0.05),
+              ),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                child: Container(color: Colors.transparent),
+              ),
             ),
           ),
-        ),
-      ),
-    ),
-  ),
-),
 
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 50),
+                  // App Branding
+                  Row(
+                    children: [
+                      Container(
+                        height: 45,
+                        width: 45,
+                        decoration: BoxDecoration(
+                          gradient: AppTheme.accentGradient,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: AppTheme.accentShadow,
+                        ),
+                        child: const Icon(Icons.health_and_safety_rounded, color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(width: 15),
+                      const Text(
+                        "DENTCARE",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 3,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const Spacer(),
+
+                  // Hero Image
+                  Center(
+                    child: Container(
+                      height: 300,
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage('assets/images/icons_3d.png'),
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  // Tagline
+                  const Text(
+                    "Precision in\nEvery Shade",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 48,
+                      fontWeight: FontWeight.w900,
+                      height: 1.1,
+                      letterSpacing: -1,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  const Text(
+                    "The world's most advanced AI-driven dental shade analysis system for elite clincians.",
+                    style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 16,
+                      height: 1.5,
+                    ),
+                  ),
+
+                  const SizedBox(height: 50),
+
+                  // Get Started Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 70,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const Login()));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
+                        elevation: 0,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "ENTER PORTAL",
+                            style: TextStyle(
+                              color: AppTheme.primary,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 16,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Icon(Icons.arrow_forward_rounded, color: AppTheme.primary),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
                 ],
               ),
             ),
           ),
         ],
       ),
-
     );
-  }                                         
-}
-class BackgroundLinePainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    final path = Path();
-    path.moveTo(size.width * 0.7, 0);
-    path.cubicTo(
-      size.width * 0.9, size.height * 0.2,
-      size.width * 0.2, size.height * 0.4,
-      size.width * 0.1, size.height * 0.6,
-    );
-    path.cubicTo(
-      size.width * 0.05, size.height * 0.75,
-      size.width * 0.4, size.height * 0.85,
-      size.width * 0.8, size.height * 0.95,
-    );
-    path.quadraticBezierTo(
-      size.width * 0.95, size.height, 
-      size.width, size.height * 0.9
-    );
-    canvas.drawPath(path, paint);
   }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

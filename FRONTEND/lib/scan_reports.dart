@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'utils/theme.dart';
 
 class ScanReportsScreen extends StatelessWidget {
   const ScanReportsScreen({super.key});
@@ -8,10 +9,16 @@ class ScanReportsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Scan Reports', style: TextStyle(color: Colors.white)),
-        backgroundColor: const Color(0xFF4FD1C5),
+        title: const Text('HISTORICAL LOGS', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 2, fontSize: 16)),
+        backgroundColor: Colors.white,
+        centerTitle: true,
         elevation: 0,
+        foregroundColor: AppTheme.primary,
+        actions: [
+          IconButton(icon: const Icon(Icons.filter_list_rounded), onPressed: () {}),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
@@ -21,71 +28,88 @@ class ScanReportsScreen extends StatelessWidget {
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF4FD1C5)));
+            return const Center(child: CircularProgressIndicator(color: AppTheme.accent));
           }
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: SelectableText(
-                  'Firestore Index Required:\n\n${snapshot.error}\n\nPlease copy the URL in the error above and open it in your browser to generate the database index.',
-                  style: const TextStyle(color: Colors.red, fontSize: 14),
-                ),
-              ),
-            );
-          }
+          
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text(
-                'No historical scans found.',
-                style: TextStyle(fontSize: 18, color: Colors.grey),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.history_rounded, size: 80, color: Colors.black12),
+                  const SizedBox(height: 16),
+                  Text("No historical records found", style: AppTheme.subHeading),
+                ],
               ),
             );
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(24.0),
+            physics: const BouncingScrollPhysics(),
             itemCount: snapshot.data!.docs.length,
             itemBuilder: (context, index) {
               final data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-              final shade = data['shade'] ?? 'Unknown';
-              final confidence = data['confidence'] ?? 0.0;
-              final email = data['doctorEmail'] ?? 'Unknown Doctor';
-              final timestamp = data['timestamp'] as Timestamp?;
-
-              String dateString = "Unknown Date";
-              if (timestamp != null) {
-                final d = timestamp.toDate();
-                dateString = "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}";
-              }
-
-              return Card(
-                elevation: 2,
-                margin: const EdgeInsets.only(bottom: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                child: ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFE6FFFA),
-                    child: Icon(Icons.document_scanner, color: Color(0xFF38B2AC)),
-                  ),
-                  title: Text(
-                    'Shade: $shade',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 4),
-                      Text('By: $email', style: const TextStyle(color: Colors.black87)),
-                      Text('Confidence: ${(confidence * 100).toStringAsFixed(1)}% | $dateString', style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-              );
+              return _buildReportCard(data);
             },
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildReportCard(Map<String, dynamic> data) {
+    final shade = data['shade'] ?? 'Unknown';
+    final confidence = data['confidence'] ?? 0.0;
+    final timestamp = data['timestamp'] as Timestamp?;
+
+    String dateString = "Recents";
+    if (timestamp != null) {
+      final d = timestamp.toDate();
+      dateString = "${d.day}/${d.month} • ${d.hour}:${d.minute.toString().padLeft(2, '0')}";
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(Icons.analytics_outlined, color: AppTheme.accent),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text("Shade Analysis: $shade", style: AppTheme.cardTitle),
+                const SizedBox(height: 4),
+                Text(dateString, style: AppTheme.subHeading.copyWith(fontSize: 12)),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppTheme.background,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              "${(confidence * 100).toStringAsFixed(1)}%",
+              style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primary, fontSize: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
