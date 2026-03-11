@@ -1,6 +1,4 @@
----
-
-# 🦷 DENTCARE
+# DENTCARE
 
 <div align="center">
 
@@ -22,12 +20,12 @@ A scalable **mobile healthcare application** designed to improve access to denta
 
 ---
 
-# 📚 Table of Contents
+## Table of Contents
 
 1. Overview
 2. Features
 3. Architecture
-4. Tech Stack
+4. Technology Stack
 5. Project Structure
 6. Installation
 7. Running the Application
@@ -40,79 +38,67 @@ A scalable **mobile healthcare application** designed to improve access to denta
 
 ---
 
-# 🚀 Overview
+## Overview
 
-**DENTCARE** is a mobile-first dental care platform designed to bridge the gap between patients and dental services.
+**DENTCARE** is a mobile-first dental care platform designed to bridge the gap between patients and dental services. The application provides a streamlined digital interface that enables patients to access dental services, interact with dental professionals, and manage appointments efficiently.
 
-The system enables patients to:
-
-* Access dental services
-* Interact with dental professionals
-* Manage appointments
-* Receive dental care information
-
-The platform follows a **modern client–server architecture** using **Flutter for mobile development and FastAPI for backend services**.
+The system follows a modern **client–server architecture** using **Flutter** for the mobile application and **FastAPI** for backend services.
 
 ---
 
-# ✨ Features
+## Features
 
-## Patient Features
+### Patient Features
 
-• User registration and authentication
-• Access to dental services
-• Appointment management
-• Mobile-friendly interface
+| Feature                | Description                         |
+| ---------------------- | ----------------------------------- |
+| User Registration      | Secure user sign-up and login       |
+| Dental Services        | Browse available dental services    |
+| Appointment Management | Book and manage dental appointments |
+| Mobile Experience      | Optimized mobile user interface     |
 
-## System Features
+### System Features
 
-• REST API-based backend
-• Scalable architecture
-• Modular backend structure
-• Secure client-server communication
+| Feature              | Description                               |
+| -------------------- | ----------------------------------------- |
+| REST API Backend     | FastAPI based RESTful architecture        |
+| Modular Backend      | Structured and scalable backend modules   |
+| Secure Communication | Client-server communication via REST APIs |
+| Scalable Design      | Designed for future cloud deployment      |
 
 ---
 
-# 🏗 System Architecture
+## System Architecture
 
 ```
               Mobile Application
                   (Flutter)
-                       │
-                       │ REST API
-                       ▼
+                       |
+                       | REST API
+                       v
                 FastAPI Backend
-                       │
-                       │ Data Processing
-                       ▼
-                   Database
+                       |
+                       | Data Processing
+                       v
+                    Database
 ```
 
-The application uses a **client-server architecture** where the mobile application communicates with the backend using **REST APIs**.
+The application uses a client-server model where the Flutter mobile application communicates with backend services through REST APIs.
 
 ---
 
-# 🧰 Technology Stack
+## Technology Stack
 
-## Frontend
-
-* Flutter
-* Dart
-
-## Backend
-
-* Python
-* FastAPI
-* Uvicorn
-
-## Communication
-
-* REST APIs
-* JSON
+| Layer         | Technology      |
+| ------------- | --------------- |
+| Frontend      | Flutter, Dart   |
+| Backend       | Python, FastAPI |
+| Server        | Uvicorn         |
+| Communication | REST APIs, JSON |
 
 ---
 
-# 📂 Project Structure
+## Project Structure
 
 ```
 DENTCARE
@@ -136,7 +122,7 @@ DENTCARE
 
 ---
 
-# ⚙️ Installation
+## Installation
 
 Clone the repository:
 
@@ -144,7 +130,7 @@ Clone the repository:
 git clone https://github.com/Viwvwek/DENTCARE-.git
 ```
 
-Navigate to the project folder:
+Navigate to the project directory:
 
 ```bash
 cd DENTCARE
@@ -152,9 +138,9 @@ cd DENTCARE
 
 ---
 
-# 🖥 Backend Setup
+## Backend Setup
 
-Install dependencies:
+Install backend dependencies:
 
 ```bash
 pip install -r requirements.txt
@@ -166,7 +152,7 @@ Run the backend server:
 python -m uvicorn app:app --host 0.0.0.0 --port 8000
 ```
 
-Backend will run on:
+Backend will be available at:
 
 ```
 http://localhost:8000
@@ -174,7 +160,7 @@ http://localhost:8000
 
 ---
 
-# 📱 Mobile App Setup
+## Mobile App Setup
 
 Install Flutter dependencies:
 
@@ -182,7 +168,7 @@ Install Flutter dependencies:
 flutter pub get
 ```
 
-Run the application:
+Run the mobile application:
 
 ```bash
 flutter run
@@ -190,21 +176,14 @@ flutter run
 
 ---
 
-# 📡 API Documentation
+## API Documentation
 
-FastAPI automatically generates API documentation.
+FastAPI automatically generates interactive API documentation.
 
-Swagger UI:
-
-```
-http://localhost:8000/docs
-```
-
-ReDoc:
-
-```
-http://localhost:8000/redoc
-```
+| Tool       | URL                                                        |
+| ---------- | ---------------------------------------------------------- |
+| Swagger UI | [http://localhost:8000/docs](http://localhost:8000/docs)   |
+| ReDoc      | [http://localhost:8000/redoc](http://localhost:8000/redoc) |
 
 Example API request:
 
@@ -226,66 +205,61 @@ Example response:
 
 ---
 
-# 📸 Screenshots
+## Screenshots
 
-*(Add screenshots of your app here)*
+Screenshots demonstrating the application interface can be added in the `docs/images` directory.
 
-Example section:
+Example:
 
 ```
-Login Screen
-Appointment Page
-Dental Services Page
+docs/images/login.png
+docs/images/appointments.png
 ```
 
-You can add images like this:
+Markdown example:
 
 ```markdown
-![App Screenshot](docs/images/app.png)
+![Application Screenshot](docs/images/app.png)
 ```
 
 ---
 
-# 🛣 Roadmap
+## Roadmap
 
-Future improvements planned for the project:
+Planned future improvements include:
 
-* Appointment scheduling system
-* Push notifications
-* Doctor dashboard
-* Cloud database integration
-* Payment gateway
-* AI dental assistant
+| Feature                | Description                        |
+| ---------------------- | ---------------------------------- |
+| Appointment Scheduling | Advanced booking system            |
+| Push Notifications     | Reminders for appointments         |
+| Doctor Dashboard       | Interface for dental professionals |
+| Cloud Database         | Migration to cloud-based storage   |
+| Payment Integration    | Online payment gateway             |
+| AI Assistant           | AI-based dental consultation       |
 
 ---
 
-# 🤝 Contributing
+## Contributing
 
-Contributions are welcome.
-
-Steps to contribute:
+Contributions are welcome. Please follow the steps below:
 
 1. Fork the repository
 2. Create a new branch
 3. Commit your changes
-4. Open a pull request
+4. Submit a pull request
 
 ---
 
-# 📜 License
+## License
 
-This project is licensed under the **MIT License**.
+This project is distributed under the **MIT License**.
 
 ---
 
-# 👨‍💻 Author
+## Author
 
 **Vivek Vinod**
-
 Computer Science Engineer
 Full Stack Developer | Mobile Developer
 
-GitHub
-[https://github.com/Viwvwek](https://github.com/Viwvwek)
-
----
+GitHub: [https://github.com/Viwvwek](https://github.com/Viwvwek)
