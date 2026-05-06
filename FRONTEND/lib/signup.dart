@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'utils/theme.dart';
 import 'utils/loading_overlay.dart';
+import 'widgets/bouncing_button.dart';
 import 'dart:ui';
 
 class Signup extends StatefulWidget {
@@ -92,19 +94,23 @@ class _SignupState extends State<Signup> {
                   children: [
                     const SizedBox(height: 20),
                     // Back Button
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
+                    BouncingButton(
+                      scaleFactor: 0.8,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pop(context);
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
                       ),
                     ),
 
-                    const SizedBox(height: 100),
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.12),
 
                     // Title Section
                     const Text(
@@ -160,26 +166,34 @@ class _SignupState extends State<Signup> {
 
                           const SizedBox(height: 40),
 
-                          SizedBox(
-                            width: double.infinity,
-                            height: 60,
-                            child: ElevatedButton(
-                              onPressed: _loading ? null : _signup,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primary,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                elevation: 0,
+                          BouncingButton(
+                            scaleFactor: 0.95,
+                            onTap: () {
+                              if (!_loading) {
+                                HapticFeedback.heavyImpact();
+                                _signup();
+                              }
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: AppTheme.softShadow,
                               ),
-                              child: _loading
-                                  ? const CircularProgressIndicator(color: Colors.white)
-                                  : const Text(
-                                      "CREATE CLINICAL ACCOUNT",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1,
+                              child: Center(
+                                child: _loading
+                                    ? const CircularProgressIndicator(color: Colors.white)
+                                    : const Text(
+                                        "CREATE CLINICAL ACCOUNT",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1,
+                                        ),
                                       ),
-                                    ),
+                              ),
                             ),
                           ),
                         ],

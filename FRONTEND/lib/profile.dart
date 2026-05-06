@@ -10,7 +10,7 @@ class ProfileScreen extends StatelessWidget {
   Future<void> _logout(BuildContext context) async {
     await FirebaseAuth.instance.signOut();
     if (context.mounted) {
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const Login()));
+      Navigator.popUntil(context, (route) => route.isFirst);
     }
   }
 

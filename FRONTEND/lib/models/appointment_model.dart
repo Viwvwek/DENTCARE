@@ -31,13 +31,23 @@ class AppointmentModel {
 
   factory AppointmentModel.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+    DateTime parseDate(dynamic value, {DateTime? fallback}) {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        return DateTime.tryParse(value) ?? fallback ?? DateTime.now();
+      }
+      return fallback ?? DateTime.now();
+    }
+
     return AppointmentModel(
       appointmentId: data['appointmentId'] ?? doc.id,
       patientId: data['patientId'] ?? '',
       patientName: data['patientName'] ?? '',
       doctorUid: data['doctorUid'] ?? '',
       doctorName: data['doctorName'] ?? '',
-      dateTime: (data['dateTime'] as Timestamp).toDate(),
+      dateTime: parseDate(data['dateTime']),
       durationMinutes: data['durationMinutes'] ?? 30,
       type: data['type'] ?? 'consultation',
       status: data['status'] ?? 'scheduled',

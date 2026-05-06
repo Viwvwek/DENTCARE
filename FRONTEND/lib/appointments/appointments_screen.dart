@@ -3,10 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/services.dart';
+import 'dart:async';
+import '../models/patient_model.dart';
 import '../utils/theme.dart';
 import '../utils/loading_overlay.dart';
 import '../services/database_service.dart';
 import '../services/user_service.dart';
+import '../widgets/bouncing_button.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   const AppointmentsScreen({super.key});
@@ -21,12 +26,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
   DateTime _focusedDay = DateTime.now();
   CalendarFormat _calendarFormat = CalendarFormat.week;
   late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-  }
 
   @override
   void dispose() {
@@ -65,7 +64,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
           ),
         ],
       ),
-      floatingActionButton: _buildAddButton(context),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 90),
+        child: _buildAddButton(context),
+      ),
     );
   }
 
@@ -158,47 +160,81 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
   }
 
   Widget _buildScheduleView() {
-    final user = FirebaseAuth.instance.currentUser;
-    final startOfDay = DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
-
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('clinics')
-          .doc(user?.uid ?? '')
-          .collection('appointments')
-          .where('dateTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('dateTime', isLessThan: Timestamp.fromDate(endOfDay))
-          .orderBy('dateTime')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: AppTheme.accent));
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box(DatabaseService.appointmentsBox).listenable(),
+      builder: (context, Box box, _) {
+        if (box.isEmpty) {
           return _buildEmptyDay();
         }
 
-        final appointments = snapshot.data!.docs;
+        final startOfDay = DateTime(_selectedDay.year, _selectedDay.month, _selectedDay.day);
+        final endOfDay = startOfDay.add(const Duration(days: 1));
+
+        final appointments = box.values
+            .map((e) => Map<String, dynamic>.from(e))
+            .where((data) {
+          final dt = _parseDate(data['dateTime']);
+          return dt.isAfter(startOfDay.subtract(const Duration(seconds: 1))) && 
+                 dt.isBefore(endOfDay);
+        }).toList();
+
+        // Sort by time
+        appointments.sort((a, b) => 
+            _parseDate(a['dateTime']).compareTo(_parseDate(b['dateTime'])));
+
+        if (appointments.isEmpty) {
+          return _buildEmptyDay();
+        }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
           physics: const BouncingScrollPhysics(),
           itemCount: appointments.length,
           itemBuilder: (context, index) {
-            final data = appointments[index].data() as Map<String, dynamic>;
-            return _buildAppointmentCard(appointments[index].id, data);
+            final data = appointments[index];
+            return _buildAppointmentCard(data['appointmentId'], data);
           },
         );
       },
     );
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _syncAppointments();
+  }
+
+  Future<void> _syncAppointments() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(user.uid)
+          .collection('appointments')
+          .get();
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        await DatabaseService.saveLocal(DatabaseService.appointmentsBox, doc.id, data);
+      }
+    } catch (e) {
+      debugPrint("Sync error: $e");
+    }
+  }
+
+  DateTime _parseDate(dynamic value) {
+    if (value is Timestamp) {
+      return value.toDate();
+    } else if (value is String) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    return DateTime.now();
+  }
+
   Widget _buildAppointmentCard(String id, Map<String, dynamic> data) {
-    final dateTime = data['dateTime'] != null
-        ? (data['dateTime'] as Timestamp).toDate()
-        : DateTime.now();
+    final dateTime = _parseDate(data['dateTime']);
     final status = data['status'] as String? ?? 'scheduled';
     final type = data['type'] as String? ?? 'Consultation';
     final patientName = data['patientName'] as String? ?? 'Unknown';
@@ -308,21 +344,25 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
   }
 
   Widget _buildActionButtons(String id, String status) {
-    if (status == 'scheduled' || status == 'confirmed') {
-      return Row(
-        children: [
+    return Row(
+      children: [
+        if (status == 'scheduled' || status == 'confirmed') ...[
           _actionBtn(Icons.check_circle_outline_rounded, AppTheme.accent, () => _updateStatus(id, 'in-progress')),
           const SizedBox(width: 6),
-          _actionBtn(Icons.cancel_outlined, Colors.redAccent, () => _updateStatus(id, 'cancelled')),
+          _actionBtn(Icons.cancel_outlined, Colors.orangeAccent, () => _updateStatus(id, 'cancelled')),
+          const SizedBox(width: 6),
         ],
-      );
-    }
-    return const SizedBox.shrink();
+        _actionBtn(Icons.delete_outline_rounded, Colors.redAccent, () => _deleteAppointment(id)),
+      ],
+    );
   }
 
   Widget _actionBtn(IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
+    return BouncingButton(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        onTap();
+      },
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
@@ -332,6 +372,27 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
         child: Icon(icon, color: color, size: 18),
       ),
     );
+  }
+
+  Future<void> _deleteAppointment(String id) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+    
+    // Delete locally
+    final box = Hive.box(DatabaseService.appointmentsBox);
+    await box.delete(id);
+    
+    // Delete from Firestore
+    try {
+      await FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(user.uid)
+          .collection('appointments')
+          .doc(id)
+          .delete();
+    } catch (e) {
+      debugPrint("Error deleting appointment remotely: $e");
+    }
   }
 
   Future<void> _updateStatus(String id, String newStatus) async {
@@ -345,23 +406,28 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
   }
 
   Widget _buildWaitingRoomView() {
-    final user = FirebaseAuth.instance.currentUser;
-    final today = DateTime.now();
-    final startOfDay = DateTime(today.year, today.month, today.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    return ValueListenableBuilder(
+      valueListenable: Hive.box(DatabaseService.appointmentsBox).listenable(),
+      builder: (context, Box box, _) {
+        final today = DateTime.now();
+        final startOfDay = DateTime(today.year, today.month, today.day);
+        final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('clinics')
-          .doc(user?.uid ?? '')
-          .collection('appointments')
-          .where('dateTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
-          .where('dateTime', isLessThan: Timestamp.fromDate(endOfDay))
-          .where('status', whereIn: ['scheduled', 'confirmed', 'in-progress'])
-          .orderBy('dateTime')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        final appointments = box.values
+            .map((e) => Map<String, dynamic>.from(e))
+            .where((data) {
+          final dt = _parseDate(data['dateTime']);
+          final status = data['status'] as String? ?? 'scheduled';
+          return dt.isAfter(startOfDay.subtract(const Duration(seconds: 1))) && 
+                 dt.isBefore(endOfDay) &&
+                 ['scheduled', 'confirmed', 'in-progress'].contains(status);
+        }).toList();
+
+        // Sort by time
+        appointments.sort((a, b) => 
+            _parseDate(a['dateTime']).compareTo(_parseDate(b['dateTime'])));
+
+        if (appointments.isEmpty) {
           return Padding(
             padding: const EdgeInsets.all(40),
             child: Column(
@@ -376,87 +442,22 @@ class _AppointmentsScreenState extends State<AppointmentsScreen>
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
           physics: const BouncingScrollPhysics(),
-          itemCount: snapshot.data!.docs.length,
+          itemCount: appointments.length,
           itemBuilder: (context, index) {
-            final data = snapshot.data!.docs[index].data() as Map<String, dynamic>;
-            final dateTime = data['dateTime'] != null ? (data['dateTime'] as Timestamp).toDate() : DateTime.now();
+            final data = appointments[index];
+            final dateTime = _parseDate(data['dateTime']);
             final patientName = data['patientName'] as String? ?? 'Unknown';
             final status = data['status'] as String? ?? 'scheduled';
             final type = data['type'] as String? ?? '';
 
-            // Estimate wait time
-            final waitMin = (index * 20);
-
-            return Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: status == 'in-progress' ? AppTheme.primary : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: AppTheme.softShadow,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: status == 'in-progress'
-                          ? AppTheme.accent.withValues(alpha: 0.3)
-                          : AppTheme.background,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 14,
-                          color: status == 'in-progress' ? AppTheme.accent : AppTheme.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          patientName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 14,
-                            color: status == 'in-progress' ? Colors.white : AppTheme.primary,
-                          ),
-                        ),
-                        Text(
-                          '$type · ${DateFormat('HH:mm').format(dateTime)}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: status == 'in-progress' ? Colors.white60 : AppTheme.secondaryText,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        status == 'in-progress' ? 'IN PROGRESS' : '~$waitMin min',
-                        style: TextStyle(
-                          color: status == 'in-progress' ? AppTheme.accent : AppTheme.secondaryText,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            return _WaitingRoomCard(
+              index: index,
+              patientName: patientName,
+              type: type,
+              dateTime: dateTime,
+              status: status,
             );
           },
         );
@@ -588,6 +589,7 @@ class _BookAppointmentSheet extends StatefulWidget {
 class _BookAppointmentSheetState extends State<_BookAppointmentSheet> {
   final _patientNameCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  String _patientId = '';
   String _type = 'Consultation';
   TimeOfDay _time = TimeOfDay.now();
   bool _isSaving = false;
@@ -639,7 +641,7 @@ class _BookAppointmentSheetState extends State<_BookAppointmentSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _field(_patientNameCtrl, 'Patient Name', Icons.person_outline_rounded),
+                      _patientSearchField(),
                       const SizedBox(height: 14),
                       _timePicker(context),
                       const SizedBox(height: 14),
@@ -673,6 +675,72 @@ class _BookAppointmentSheetState extends State<_BookAppointmentSheet> {
           if (_isSaving) const PremiumLoadingOverlay(message: 'Booking', subMessage: 'Scheduling appointment'),
         ],
       ),
+    );
+  }
+
+  Widget _patientSearchField() {
+    return Autocomplete<Map<String, dynamic>>(
+      displayStringForOption: (option) => option['name'] as String? ?? 'Unknown',
+      optionsBuilder: (TextEditingValue textEditingValue) {
+        if (textEditingValue.text.isEmpty) {
+          return const Iterable<Map<String, dynamic>>.empty();
+        }
+        final patientsBox = Hive.box(DatabaseService.patientsBox);
+        final patients = patientsBox.values.map((e) => Map<String, dynamic>.from(e)).toList();
+        return patients.where((patient) {
+          final name = (patient['name'] as String? ?? '').toLowerCase();
+          return name.contains(textEditingValue.text.toLowerCase());
+        });
+      },
+      onSelected: (Map<String, dynamic> selection) {
+        _patientNameCtrl.text = selection['name'] as String? ?? '';
+        _patientId = selection['patientId'] as String? ?? '';
+      },
+      fieldViewBuilder: (context, controller, focusNode, onEditingComplete) {
+        return TextFormField(
+          controller: controller,
+          focusNode: focusNode,
+          onEditingComplete: onEditingComplete,
+          style: const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600),
+          decoration: InputDecoration(
+            labelText: 'Search Patient',
+            prefixIcon: const Icon(Icons.person_search_rounded, color: AppTheme.accent, size: 20),
+            filled: true,
+            fillColor: AppTheme.background,
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(18), borderSide: const BorderSide(color: AppTheme.accent, width: 2)),
+          ),
+          onChanged: (val) {
+            _patientNameCtrl.text = val;
+            _patientId = ''; // Reset ID if manually typed
+          },
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(18),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 200, maxWidth: 300),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: options.length,
+                itemBuilder: (BuildContext context, int index) {
+                  final option = options.elementAt(index);
+                  return ListTile(
+                    title: Text(option['name'] as String? ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, color: AppTheme.primary)),
+                    subtitle: Text(option['phone'] as String? ?? '', style: const TextStyle(fontSize: 12, color: AppTheme.secondaryText)),
+                    onTap: () => onSelected(option),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -773,6 +841,7 @@ class _BookAppointmentSheetState extends State<_BookAppointmentSheet> {
 
         final apptData = {
           'appointmentId': apptId,
+          'patientId': _patientId,
           'patientName': _patientNameCtrl.text.trim(),
           'doctorUid': user.uid,
           'doctorName': profile?.displayName ?? user.email?.split('@').first ?? 'Doctor',
@@ -804,5 +873,137 @@ class _BookAppointmentSheetState extends State<_BookAppointmentSheet> {
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
+  }
+}
+
+class _WaitingRoomCard extends StatefulWidget {
+  final int index;
+  final String patientName;
+  final String type;
+  final DateTime dateTime;
+  final String status;
+
+  const _WaitingRoomCard({
+    required this.index,
+    required this.patientName,
+    required this.type,
+    required this.dateTime,
+    required this.status,
+  });
+
+  @override
+  State<_WaitingRoomCard> createState() => _WaitingRoomCardState();
+}
+
+class _WaitingRoomCardState extends State<_WaitingRoomCard> {
+  late Timer _timer;
+  String _waitText = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateWaitTime();
+    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      if (mounted) _updateWaitTime();
+    });
+  }
+
+  void _updateWaitTime() {
+    if (widget.status == 'in-progress') {
+      setState(() => _waitText = 'IN PROGRESS');
+      return;
+    }
+
+    final now = DateTime.now();
+    final diff = now.difference(widget.dateTime).inMinutes;
+
+    setState(() {
+      if (diff > 0) {
+        _waitText = 'Waiting $diff min';
+      } else if (diff == 0) {
+        _waitText = 'Now';
+      } else {
+        _waitText = 'In ${-diff} min';
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: widget.status == 'in-progress' ? AppTheme.primary : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: AppTheme.softShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: widget.status == 'in-progress'
+                  ? AppTheme.accent.withValues(alpha: 0.3)
+                  : AppTheme.background,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '${widget.index + 1}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  color: widget.status == 'in-progress' ? AppTheme.accent : AppTheme.primary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.patientName,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: widget.status == 'in-progress' ? Colors.white : AppTheme.primary,
+                  ),
+                ),
+                Text(
+                  '${widget.type} · ${DateFormat('HH:mm').format(widget.dateTime)}',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: widget.status == 'in-progress' ? Colors.white60 : AppTheme.secondaryText,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                _waitText,
+                style: TextStyle(
+                  color: widget.status == 'in-progress' ? AppTheme.accent : AppTheme.secondaryText,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

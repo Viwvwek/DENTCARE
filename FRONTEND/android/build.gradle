@@ -13,6 +13,18 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
+subprojects {
+    project.plugins.whenPluginAdded { plugin ->
+        if ("com.android.build.gradle.AppPlugin".equals(plugin.class.name) || "com.android.build.gradle.LibraryPlugin".equals(plugin.class.name)) {
+            project.android {
+                if (namespace == null) {
+                    namespace = "com.dentcare.${project.name.replaceAll("-", "_")}"
+                }
+            }
+        }
+    }
+}
+
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }

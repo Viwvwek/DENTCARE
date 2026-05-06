@@ -52,6 +52,16 @@ class ScanModel {
 
   factory ScanModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    DateTime parseDate(dynamic value, {DateTime? fallback}) {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        return DateTime.tryParse(value) ?? fallback ?? DateTime.now();
+      }
+      return fallback ?? DateTime.now();
+    }
+
     return ScanModel(
       scanId: doc.id,
       patientId: data['patientId'] ?? '',
@@ -70,7 +80,41 @@ class ScanModel {
       treatmentRecommendation: data['treatmentRecommendation'],
       toothNumber: data['toothNumber'],
       scanType: data['scanType'],
-      timestamp: (data['timestamp'] as Timestamp).toDate(),
+      timestamp: parseDate(data['timestamp']),
+      appointmentId: data['appointmentId'],
+      isFlaggedForReview: data['isFlaggedForReview'] ?? false,
+    );
+  }
+
+  factory ScanModel.fromMap(Map<String, dynamic> data) {
+    DateTime parseDate(dynamic value, {DateTime? fallback}) {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        return DateTime.tryParse(value) ?? fallback ?? DateTime.now();
+      }
+      return fallback ?? DateTime.now();
+    }
+
+    return ScanModel(
+      scanId: data['id'] ?? '',
+      patientId: data['patientId'] ?? '',
+      patientName: data['patientName'] ?? '',
+      doctorUid: data['doctorUid'] ?? '',
+      doctorName: data['doctorName'] ?? '',
+      clinicId: data['clinicId'] ?? '',
+      shade: data['shade'] ?? '',
+      confidence: (data['confidence'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: data['imagePath'] ?? '',
+      qualityScore: data['qualityScore'] != null
+          ? (data['qualityScore'] as num).toDouble()
+          : null,
+      isLowConfidence: data['isLowConfidence'] ?? false,
+      clinicalNotes: data['clinicalNotes'],
+      treatmentRecommendation: data['insight'],
+      toothNumber: data['toothNumber'],
+      scanType: data['scanType'],
+      timestamp: parseDate(data['timestamp']),
       appointmentId: data['appointmentId'],
       isFlaggedForReview: data['isFlaggedForReview'] ?? false,
     );

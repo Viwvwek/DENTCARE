@@ -25,12 +25,14 @@ class NotificationService {
     const DarwinInitializationSettings iosSettings = DarwinInitializationSettings();
     const InitializationSettings initSettings = InitializationSettings(android: androidSettings, iOS: iosSettings);
 
+    dev.log('Initializing local notifications...');
     await _localNotifications.initialize(
       settings: initSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         // Handle notification tap
       },
     );
+    dev.log('Local notifications initialized.');
 
     // 3. Listen for Foreground Messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {

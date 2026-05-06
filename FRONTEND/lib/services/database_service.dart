@@ -11,10 +11,21 @@ class DatabaseService {
   static const String syncQueueBox = 'sync_queue';
 
   static Future<void> init() async {
-    await Hive.openBox(scansBox);
-    await Hive.openBox(patientsBox);
-    await Hive.openBox(appointmentsBox);
-    await Hive.openBox(syncQueueBox);
+    final boxes = [scansBox, patientsBox, appointmentsBox, syncQueueBox];
+    
+    for (final boxName in boxes) {
+      try {
+        await Hive.openBox(boxName);
+      } catch (e) {
+        dev.log("Error opening Hive box '$boxName': $e. Attempting to repair by deleting box.");
+        try {
+          await Hive.deleteBoxFromDisk(boxName);
+          await Hive.openBox(boxName);
+        } catch (deleteError) {
+          dev.log("Critical error repairing box '$boxName': $deleteError");
+        }
+      }
+    }
     
     // Start background sync listener
     _initSyncListener();
@@ -67,10 +78,16 @@ class DatabaseService {
 
     final keys = box.keys.toList();
     for (var key in keys) {
-      final entry = Map<String, dynamic>.from(box.get(key));
+      final rawEntry = box.get(key);
+      if (rawEntry == null) continue;
+      
+      final entry = Map<String, dynamic>.from(rawEntry);
       final collection = entry['collection'];
       final docId = entry['documentId'];
-      final data = Map<String, dynamic>.from(entry['data']);
+      final rawData = entry['data'];
+      if (rawData == null) continue;
+      
+      final data = Map<String, dynamic>.from(rawData);
 
       try {
         // Correctly route to Firestore based on collection type

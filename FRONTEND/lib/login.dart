@@ -2,6 +2,8 @@ import 'package:dentcare/home.dart';
 import 'package:flutter/material.dart';
 import 'package:dentcare/signup.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
+import 'widgets/bouncing_button.dart';
 import 'utils/theme.dart';
 import 'utils/loading_overlay.dart';
 
@@ -94,19 +96,23 @@ class _LoginState extends State<Login> {
                   children: [
                     const SizedBox(height: 20),
                     // Back Button
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
+                    BouncingButton(
+                      scaleFactor: 0.8,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.pop(context);
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(Icons.arrow_back_ios_new_rounded, color: AppTheme.primary, size: 20),
                       ),
                     ),
 
-                    const SizedBox(height: 180), // Push content down below hero image
+                    SizedBox(height: MediaQuery.of(context).size.height * 0.20), // Responsive push down
 
                     // Login Card
                     Container(
@@ -160,26 +166,34 @@ class _LoginState extends State<Login> {
                           const SizedBox(height: 40),
 
                           // Login Button
-                          SizedBox(
-                            width: double.infinity,
-                            height: 60,
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _handleLogin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppTheme.primary,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                elevation: 0,
+                          BouncingButton(
+                            scaleFactor: 0.95,
+                            onTap: () {
+                              if (!_isLoading) {
+                                HapticFeedback.heavyImpact();
+                                _handleLogin();
+                              }
+                            },
+                            child: Container(
+                              width: double.infinity,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primary,
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: AppTheme.softShadow,
                               ),
-                              child: _isLoading
-                                  ? const CircularProgressIndicator(color: Colors.white)
-                                  : const Text(
-                                      "AUTHORIZE ACCESS",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.5,
+                              child: Center(
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(color: Colors.white)
+                                    : const Text(
+                                        "AUTHORIZE ACCESS",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
                                       ),
-                                    ),
+                              ),
                             ),
                           ),
                         ],

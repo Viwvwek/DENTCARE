@@ -6,6 +6,8 @@ import '../models/scan_model.dart';
 import '../reports/pdf_generator.dart';
 import '../utils/theme.dart';
 import 'patient_list.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import '../services/database_service.dart';
 
 class PatientDetailScreen extends StatelessWidget {
   final PatientModel patient;
@@ -210,24 +212,19 @@ class PatientDetailScreen extends StatelessWidget {
   }
 
   Widget _buildScanHistory() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('clinics')
-          .doc(patient.assignedDoctorUid)
-          .collection('scans')
-          .where('patientId', isEqualTo: patient.patientId)
-          .orderBy('timestamp', descending: true)
-          .limit(10)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: Padding(
-            padding: EdgeInsets.all(20),
-            child: CircularProgressIndicator(color: AppTheme.accent),
-          ));
-        }
+    return ValueListenableBuilder(
+      valueListenable: Hive.box(DatabaseService.scansBox).listenable(),
+      builder: (context, Box box, _) {
+        final allScans = box.values
+            .map((e) => Map<String, dynamic>.from(e))
+            .where((data) => data['patientId'] == patient.patientId)
+            .toList();
 
-        if (snapshot.data!.docs.isEmpty) {
+        // Sort by timestamp
+        allScans.sort((a, b) => 
+            DateTime.parse(b['timestamp']).compareTo(DateTime.parse(a['timestamp'])));
+
+        if (allScans.isEmpty) {
           return Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
             child: Container(
@@ -247,9 +244,7 @@ class PatientDetailScreen extends StatelessWidget {
           );
         }
 
-        final scans = snapshot.data!.docs
-            .map((d) => ScanModel.fromFirestore(d))
-            .toList();
+        final scans = allScans.map((data) => ScanModel.fromMap(data)).toList();
 
         return SizedBox(
           height: 130,
@@ -268,6 +263,30 @@ class PatientDetailScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildEditButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 90),
+      child: Container(
+        height: 64,
+        width: 64,
+        decoration: BoxDecoration(
+          gradient: AppTheme.accentGradient,
+          shape: BoxShape.circle,
+          boxShadow: AppTheme.accentShadow,
+        ),
+        child: IconButton(
+          icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PatientFormScreen(patient: patient),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildScanChip(BuildContext context, ScanModel scan, bool isLatest) {
     return GestureDetector(
       onTap: () {
@@ -278,15 +297,15 @@ class PatientDetailScreen extends StatelessWidget {
         );
       },
       child: Container(
-      width: 120,
-      margin: const EdgeInsets.only(right: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: isLatest ? AppTheme.primary : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: AppTheme.softShadow,
-      ),
-      child: Column(
+        width: 120,
+        margin: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isLatest ? AppTheme.primary : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: AppTheme.softShadow,
+        ),
+        child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (isLatest) ...[
@@ -298,37 +317,41 @@ class PatientDetailScreen extends StatelessWidget {
               ),
               child: const Text('LATEST', style: TextStyle(color: AppTheme.accent, fontSize: 8, fontWeight: FontWeight.w900)),
             ),
-            const SizedBox(height: 8),
-          ] else
-            const SizedBox(height: 20),
-          Text(
-            scan.shade,
-            style: TextStyle(
-              color: isLatest ? Colors.white : AppTheme.primary,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
+              const SizedBox(height: 8),
+            ] else
+              const SizedBox(height: 20),
+            Text(
+              scan.shade,
+              style: TextStyle(
+                color: isLatest ? Colors.white : AppTheme.primary,
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+              ),
             ),
-          ),
-          Text(
-            scan.confidencePercent,
-            style: TextStyle(
-              color: isLatest ? Colors.white70 : AppTheme.secondaryText,
-              fontSize: 12,
+            Text(
+              scan.confidencePercent,
+              style: TextStyle(
+                color: isLatest ? Colors.white70 : AppTheme.secondaryText,
+                fontSize: 12,
+              ),
             ),
-          ),
-          const Spacer(),
-          Text(
-            DateFormat('MMM dd').format(scan.timestamp),
-            style: TextStyle(
-              color: isLatest ? Colors.white60 : AppTheme.secondaryText,
-              fontSize: 11,
+            const Spacer(),
+            Text(
+              DateFormat('MMM dd').format(scan.timestamp),
+              style: TextStyle(
+                color: isLatest ? Colors.white60 : AppTheme.secondaryText,
+                fontSize: 11,
+              ),
             ),
-          ),
-        ],
-      ),
+          ],
+        ),
       ),
     );
   }
+
+
+
+
 
   Widget _buildContactInfo() {
     return Container(
@@ -369,27 +392,6 @@ class PatientDetailScreen extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildEditButton(BuildContext context) {
-    return Container(
-      height: 64,
-      width: 64,
-      decoration: BoxDecoration(
-        gradient: AppTheme.accentGradient,
-        shape: BoxShape.circle,
-        boxShadow: AppTheme.accentShadow,
-      ),
-      child: IconButton(
-        icon: const Icon(Icons.edit_rounded, color: Colors.white, size: 26),
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PatientFormScreen(patient: patient),
-          ),
-        ),
       ),
     );
   }

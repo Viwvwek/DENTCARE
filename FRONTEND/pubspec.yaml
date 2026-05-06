@@ -60,6 +60,10 @@ dependencies:
   # Charts
   fl_chart: ^0.68.0
 
+  # AI & ML
+  tflite_v2: ^1.0.0
+  image: ^4.2.0
+
   # UI Enhancements
   shimmer: ^3.0.0
   cached_network_image: ^3.3.1
@@ -105,6 +109,8 @@ flutter:
     - assets/images/icons_3d.png
     - assets/images/hero_bg.png
     - assets/images/login_hero.png
+    - assets/model.tflite
+    - assets/labels.txt
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

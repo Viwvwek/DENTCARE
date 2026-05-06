@@ -6,7 +6,12 @@ import '../models/patient_model.dart';
 import '../utils/theme.dart';
 import '../utils/loading_overlay.dart';
 import '../services/database_service.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/services.dart';
 import 'patient_detail.dart';
+import '../widgets/bouncing_button.dart';
+
+import 'patient_form.dart';
 
 class PatientListScreen extends StatefulWidget {
   const PatientListScreen({super.key});
@@ -21,9 +26,36 @@ class _PatientListScreenState extends State<PatientListScreen> {
   String _filterGender = 'All';
 
   @override
+  void initState() {
+    super.initState();
+    _syncPatients();
+  }
+
+  @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _syncPatients() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(user.uid)
+          .collection('patients')
+          .get();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        await DatabaseService.saveLocal(DatabaseService.patientsBox, doc.id, data);
+      }
+      debugPrint("Synced ${snapshot.docs.length} patients to local storage.");
+    } catch (e) {
+      debugPrint("Patient sync failed: $e. Using local data.");
+    }
   }
 
   @override
@@ -149,26 +181,18 @@ class _PatientListScreenState extends State<PatientListScreen> {
   }
 
   Widget _buildPatientList(String doctorUid) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('clinics')
-          .doc(doctorUid) // Use clinicId in real app
-          .collection('patients')
-          .where('isArchived', isEqualTo: false)
-          .orderBy('name')
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const SliverToBoxAdapter(child: _SkeletonList());
-        }
-
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+    return ValueListenableBuilder(
+      valueListenable: Hive.box(DatabaseService.patientsBox).listenable(),
+      builder: (context, Box box, _) {
+        if (box.isEmpty) {
           return SliverToBoxAdapter(child: _buildEmptyState());
         }
 
-        final patients = snapshot.data!.docs
-            .map((doc) => PatientModel.fromFirestore(doc))
+        final patients = box.values
+            .map((data) => PatientModel.fromFirestore(
+                _FakeDocumentSnapshot(data['patientId'], Map<String, dynamic>.from(data))))
             .where((p) {
+          if (p.isArchived) return false;
           final matchesSearch = _searchQuery.isEmpty ||
               p.name.toLowerCase().contains(_searchQuery) ||
               p.phone.contains(_searchQuery);
@@ -176,6 +200,9 @@ class _PatientListScreenState extends State<PatientListScreen> {
               _filterGender == 'All' || p.gender == _filterGender;
           return matchesSearch && matchesGender;
         }).toList();
+
+        // Sort by name locally
+        patients.sort((a, b) => a.name.compareTo(b.name));
 
         if (patients.isEmpty) {
           return SliverToBoxAdapter(child: _buildNoResultsState());
@@ -195,13 +222,17 @@ class _PatientListScreenState extends State<PatientListScreen> {
   }
 
   Widget _buildPatientCard(PatientModel patient) {
-    return GestureDetector(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => PatientDetailScreen(patient: patient),
-        ),
-      ),
+    return BouncingButton(
+      scaleFactor: 0.96,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => PatientDetailScreen(patient: patient),
+          ),
+        );
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 14),
         decoration: BoxDecoration(
@@ -288,39 +319,82 @@ class _PatientListScreenState extends State<PatientListScreen> {
                   ],
                 ),
               ),
-              // Visit count badge
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.background,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      '${patient.totalVisits}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
-                        color: AppTheme.primary,
-                      ),
+              // Actions
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  BouncingButton(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => PatientFormScreen(patient: patient),
+                        ),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: AppTheme.accent.withValues(alpha: 0.1), shape: BoxShape.circle),
+                      child: const Icon(Icons.edit_rounded, color: AppTheme.accent, size: 18),
                     ),
-                    const Text(
-                      'visits',
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: AppTheme.secondaryText,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  BouncingButton(
+                    onTap: () {
+                      HapticFeedback.lightImpact();
+                      _confirmDelete(patient);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.redAccent.withValues(alpha: 0.1), shape: BoxShape.circle),
+                      child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 18),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(PatientModel patient) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Patient', style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.primary)),
+        content: Text('Are you sure you want to delete ${patient.name}? This action cannot be undone.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true), 
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold))
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final box = Hive.box(DatabaseService.patientsBox);
+      await box.delete(patient.patientId);
+      
+      try {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance
+              .collection('clinics')
+              .doc(user.uid)
+              .collection('patients')
+              .doc(patient.patientId)
+              .delete();
+        }
+      } catch (e) {
+        debugPrint("Remote delete error: $e");
+      }
+    }
   }
 
   Widget _buildEmptyState() {
@@ -379,9 +453,11 @@ class _PatientListScreenState extends State<PatientListScreen> {
   }
 
   Widget _buildAddButton(BuildContext context) {
-    return Container(
-      height: 64,
-      width: 64,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 90.0), // Raise above BottomNav
+      child: Container(
+        height: 64,
+        width: 64,
       decoration: BoxDecoration(
         gradient: AppTheme.accentGradient,
         shape: BoxShape.circle,
@@ -390,6 +466,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
       child: IconButton(
         icon: const Icon(Icons.person_add_rounded, color: Colors.white, size: 28),
         onPressed: () => _showAddPatientSheet(context),
+      ),
       ),
     );
   }
@@ -762,4 +839,26 @@ class _PatientFormScreenState extends State<PatientFormScreen> {
       ),
     );
   }
+}
+
+// Helper for Hive to PatientModel conversion
+class _FakeDocumentSnapshot implements DocumentSnapshot {
+  @override
+  final String id;
+  final Map<String, dynamic>? _data;
+  _FakeDocumentSnapshot(this.id, this._data);
+
+  @override
+  Map<String, dynamic>? data() => _data;
+
+  @override
+  dynamic operator [](Object field) => _data?[field];
+  @override
+  bool get exists => _data != null;
+  @override
+  SnapshotMetadata get metadata => throw UnimplementedError();
+  @override
+  DocumentReference get reference => throw UnimplementedError();
+  @override
+  dynamic get(Object field) => _data?[field];
 }

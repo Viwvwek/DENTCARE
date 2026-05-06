@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:dentcare/login.dart';
 import 'utils/theme.dart';
+import 'widgets/bouncing_button.dart';
 import 'dart:ui';
 
 class Getstart extends StatelessWidget {
@@ -75,7 +77,7 @@ class Getstart extends StatelessWidget {
                   // Hero Image
                   Center(
                     child: Container(
-                      height: 300,
+                      height: MediaQuery.of(context).size.height * 0.35,
                       decoration: const BoxDecoration(
                         image: DecorationImage(
                           image: AssetImage('assets/images/icons_3d.png'),
@@ -92,7 +94,7 @@ class Getstart extends StatelessWidget {
                     "Precision in\nEvery Shade",
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 48,
+                      fontSize: 42, // Reduced slightly to fit more screens
                       fontWeight: FontWeight.w900,
                       height: 1.1,
                       letterSpacing: -1,
@@ -108,20 +110,21 @@ class Getstart extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 50),
+                  SizedBox(height: MediaQuery.of(context).size.height * 0.05),
 
                   // Get Started Button
-                  SizedBox(
-                    width: double.infinity,
-                    height: 70,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const Login()));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                        elevation: 0,
+                  BouncingButton(
+                    scaleFactor: 0.95,
+                    onTap: () {
+                      HapticFeedback.heavyImpact();
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const Login()));
+                    },
+                    child: Container(
+                      width: double.infinity,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,

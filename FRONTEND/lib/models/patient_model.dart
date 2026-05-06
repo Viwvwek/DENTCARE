@@ -59,11 +59,21 @@ class PatientModel {
 
   factory PatientModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    DateTime parseDate(dynamic value, {DateTime? fallback}) {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        return DateTime.tryParse(value) ?? fallback ?? DateTime.now();
+      }
+      return fallback ?? DateTime.now();
+    }
+
     return PatientModel(
       patientId: doc.id,
       clinicId: data['clinicId'] ?? '',
       name: data['name'] ?? '',
-      dateOfBirth: (data['dateOfBirth'] as Timestamp).toDate(),
+      dateOfBirth: parseDate(data['dateOfBirth'], fallback: DateTime(1990)),
       gender: data['gender'] ?? '',
       phone: data['phone'] ?? '',
       email: data['email'],
@@ -77,9 +87,9 @@ class PatientModel {
       referredBy: data['referredBy'],
       totalVisits: data['totalVisits'] ?? 0,
       lastVisitDate: data['lastVisitDate'] != null
-          ? (data['lastVisitDate'] as Timestamp).toDate()
+          ? parseDate(data['lastVisitDate'])
           : null,
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
+      createdAt: parseDate(data['createdAt']),
       isArchived: data['isArchived'] ?? false,
     );
   }
